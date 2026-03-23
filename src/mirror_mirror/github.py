@@ -91,7 +91,10 @@ class GitHubClient:
         return resp.json()["login"]
 
     def fetch_contributions(
-        self, username: str | None = None, days: int = 7
+        self,
+        username: str | None = None,
+        days: int = 7,
+        org: str | None = None,
     ) -> Contributions:
         if username is None:
             username = self.whoami()
@@ -99,28 +102,37 @@ class GitHubClient:
         now = datetime.now(timezone.utc)
         since = now - timedelta(days=days)
         iso_since = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+        org_filter = f" org:{org}" if org else ""
 
         contributions = Contributions(
             username=username, since=since, until=now
         )
 
         contributions.pull_requests = self._fetch_pull_requests(
-            username, iso_since
+            username, iso_since, org_filter
         )
-        contributions.reviews = self._fetch_reviews(username, iso_since)
-        contributions.issues = self._fetch_issues(username, iso_since)
-        contributions.commits = self._fetch_commits(username, iso_since)
+        contributions.reviews = self._fetch_reviews(
+            username, iso_since, org_filter
+        )
+        contributions.issues = self._fetch_issues(
+            username, iso_since, org_filter
+        )
+        contributions.commits = self._fetch_commits(
+            username, iso_since, org_filter
+        )
 
         return contributions
 
     def _fetch_pull_requests(
-        self, username: str, since: str
+        self, username: str, since: str, org_filter: str = ""
     ) -> list[PullRequest]:
         created = self._search(
-            "search/issues", f"author:{username} type:pr created:>={since}"
+            "search/issues",
+            f"author:{username} type:pr created:>={since}{org_filter}",
         )
         merged = self._search(
-            "search/issues", f"author:{username} type:pr merged:>={since}"
+            "search/issues",
+            f"author:{username} type:pr merged:>={since}{org_filter}",
         )
         seen: set[str] = set()
         items: list[dict] = []
@@ -143,8 +155,10 @@ class GitHubClient:
             for item in items
         ]
 
-    def _fetch_reviews(self, username: str, since: str) -> list[Review]:
-        query = f"reviewed-by:{username} type:pr updated:>={since}"
+    def _fetch_reviews(
+        self, username: str, since: str, org_filter: str = ""
+    ) -> list[Review]:
+        query = f"reviewed-by:{username} type:pr updated:>={since}{org_filter}"
         items = self._search("search/issues", query)
         since_dt = _parse_dt(since)
         reviews: list[Review] = []
@@ -187,8 +201,10 @@ class GitHubClient:
             return None
         return max(_parse_dt(r["submitted_at"]) for r in user_reviews)
 
-    def _fetch_issues(self, username: str, since: str) -> list[Issue]:
-        query = f"author:{username} type:issue created:>={since}"
+    def _fetch_issues(
+        self, username: str, since: str, org_filter: str = ""
+    ) -> list[Issue]:
+        query = f"author:{username} type:issue created:>={since}{org_filter}"
         items = self._search("search/issues", query)
         return [
             Issue(
@@ -202,8 +218,10 @@ class GitHubClient:
             for item in items
         ]
 
-    def _fetch_commits(self, username: str, since: str) -> list[Commit]:
-        query = f"author:{username} author-date:>={since}"
+    def _fetch_commits(
+        self, username: str, since: str, org_filter: str = ""
+    ) -> list[Commit]:
+        query = f"author:{username} author-date:>={since}{org_filter}"
         resp = self._client.get(
             "/search/commits",
             params={"q": query, "sort": "author-date", "per_page": 100},

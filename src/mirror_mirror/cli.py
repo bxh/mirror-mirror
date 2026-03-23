@@ -69,6 +69,11 @@ def _resolve_token(token: str | None) -> str:
     help="OpenAI model to use for summarization.",
 )
 @click.option(
+    "--org",
+    default=None,
+    help="Filter contributions to a specific GitHub organization.",
+)
+@click.option(
     "--roast",
     is_flag=True,
     default=False,
@@ -81,6 +86,7 @@ def main(
     output: str | None,
     raw: bool,
     model: str,
+    org: str | None,
     roast: bool,
 ) -> None:
     """Scan GitHub contributions and generate a weekly work report."""
@@ -91,10 +97,11 @@ def main(
         with console.status("[bold blue]Identifying user..."):
             user = client.whoami()
 
-    console.print(f"[bold blue]Scanning contributions for @{user} (last {days} days)...[/bold blue]\n")
+    scope = f" in {org}" if org else ""
+    console.print(f"[bold blue]Scanning contributions for @{user}{scope} (last {days} days)...[/bold blue]\n")
 
     with console.status("[bold blue]Fetching data from GitHub..."):
-        contributions = client.fetch_contributions(username=user, days=days)
+        contributions = client.fetch_contributions(username=user, days=days, org=org)
 
     raw_md = build_markdown(contributions)
 
