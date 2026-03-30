@@ -1,6 +1,6 @@
 # mirror-mirror
 
-Scan your GitHub contributions and generate AI-summarized weekly work reports — ready to paste into an email. Optionally get roasted by Elon.
+Scan your GitHub contributions and generate AI-summarized weekly work reports — ready to paste into Gmail. Optionally get roasted by Elon.
 
 Tracks **commits**, **pull requests**, **code reviews**, and **issues** — then uses OpenAI to distill them into a two-section status update (Last Week / This Week).
 
@@ -26,6 +26,9 @@ OPENAI_API_KEY=sk-...
 # Generate an AI-summarized report (last 7 days)
 uv run mirror
 
+# Copy to clipboard as rich HTML — paste straight into Gmail
+uv run mirror --copy
+
 # Filter to a specific GitHub org
 uv run mirror --org CareEvolution
 
@@ -38,7 +41,10 @@ uv run mirror --model gpt-4o
 # Skip AI summary, output raw data only
 uv run mirror --raw
 
-# Save to a specific file
+# Save as HTML (opens in browser, or attach to email)
+uv run mirror -o weekly-report.html
+
+# Save to a specific markdown file
 uv run mirror -o weekly-report.md
 
 # Get roasted by Elon Musk
@@ -55,7 +61,8 @@ uv run mirror --roast
 | `--org` | Filter to a specific GitHub organization | all orgs |
 | `--model` | OpenAI model for summarization | `gpt-5-mini` |
 | `--raw` | Skip AI summary, output raw data | off |
+| `--copy` | Copy report as rich HTML to clipboard (for Gmail) | off |
 | `--roast` | Append an Elon Musk-style progress review | off |
-| `-o, --output` | Output file path | `report-<user>-<date>.md` |
+| `-o, --output` | Output file path (`.md` or `.html`) | `report-<user>-<date>.md` |
 
-The report is printed to the terminal and saved as a markdown file.
+The report is printed to the terminal and saved to a file. Use `--copy` to paste directly into Gmail with formatting and links preserved.

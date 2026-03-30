@@ -13,7 +13,7 @@ from rich.console import Console
 load_dotenv()
 
 from .github import GitHubClient
-from .report import build_markdown, print_report, save_report
+from .report import build_markdown, copy_html_to_clipboard, markdown_to_html, print_report, save_report
 from .summarize import elon_review, summarize
 
 console = Console()
@@ -79,6 +79,12 @@ def _resolve_token(token: str | None) -> str:
     default=False,
     help="Get your progress reviewed by Elon Musk.",
 )
+@click.option(
+    "--copy",
+    is_flag=True,
+    default=False,
+    help="Copy report as rich HTML to clipboard (paste directly into Gmail).",
+)
 def main(
     token: str | None,
     user: str | None,
@@ -88,6 +94,7 @@ def main(
     model: str,
     org: str | None,
     roast: bool,
+    copy: bool,
 ) -> None:
     """Scan GitHub contributions and generate a weekly work report."""
     token = _resolve_token(token)
@@ -134,6 +141,13 @@ def main(
     default_name = f"report-{user}-{timestamp}.md"
     path = save_report(report_md, output or default_name)
     console.print(f"[green]Report saved to {path}[/green]")
+
+    if copy:
+        html = markdown_to_html(report_md)
+        if copy_html_to_clipboard(html):
+            console.print("[green]Report copied to clipboard — paste into Gmail.[/green]")
+        else:
+            console.print("[yellow]Could not copy to clipboard. Try: --output report.html[/yellow]")
 
 
 if __name__ == "__main__":

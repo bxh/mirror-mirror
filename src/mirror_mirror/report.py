@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
+import platform
+import subprocess
+import sys
 from collections import defaultdict
 
+import markdown as md
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
 from .github import Contributions
+
+_EMAIL_CSS = """\
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #24292f; line-height: 1.6; }
+h1 { font-size: 1.4em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
+h2 { font-size: 1.2em; margin-top: 1.2em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.2em; }
+h3 { font-size: 1em; margin-top: 1em; }
+table { border-collapse: collapse; margin: 0.8em 0; }
+th, td { border: 1px solid #d1d9e0; padding: 6px 12px; text-align: left; }
+th { background: #f6f8fa; font-weight: 600; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+ul { padding-left: 1.5em; }
+li { margin: 0.25em 0; }
+blockquote { margin: 0.4em 0 0.4em 1em; padding-left: 0.8em; border-left: 3px solid #d1d9e0; color: #656d76; }
+code { background: #f6f8fa; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }
+hr { border: none; border-top: 1px solid #d1d9e0; margin: 1.5em 0; }
+"""
 
 
 def build_markdown(contrib: Contributions) -> str:
@@ -95,6 +116,64 @@ def build_markdown(contrib: Contributions) -> str:
     return "\n".join(lines)
 
 
+def markdown_to_html(markdown_text: str) -> str:
+    """Convert markdown to a self-contained HTML document with inline styles for email."""
+    body = md.markdown(
+        markdown_text,
+        extensions=["tables", "fenced_code"],
+    )
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f"<style>{_EMAIL_CSS}</style></head>"
+        f"<body>{body}</body></html>"
+    )
+
+
+def copy_html_to_clipboard(html: str) -> bool:
+    """Copy HTML to system clipboard as rich text. Returns True on success."""
+    if platform.system() == "Darwin":
+        hex_data = html.encode("utf-8").hex()
+        script = (
+            "set the clipboard to "
+            "{«class HTML»:«data HTML" + hex_data + "»}"
+        )
+        try:
+            subprocess.run(
+                ["osascript", "-e", script],
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    if platform.system() == "Linux":
+        for cmd in ("xclip", "xsel"):
+            try:
+                subprocess.run(
+                    [cmd, "-selection", "clipboard", "-t", "text/html"],
+                    input=html.encode("utf-8"),
+                    check=True,
+                    capture_output=True,
+                )
+                return True
+            except FileNotFoundError:
+                continue
+        return False
+
+    # Fallback: plain text via pbcopy/clip/xclip
+    try:
+        subprocess.run(
+            ["pbcopy"] if platform.system() == "Darwin" else ["clip"],
+            input=html.encode("utf-8"),
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
 def print_report(markdown_text: str) -> None:
     console = Console()
     console.print()
@@ -109,6 +188,10 @@ def print_report(markdown_text: str) -> None:
 
 
 def save_report(markdown_text: str, path: str) -> str:
+    if path.endswith(".html"):
+        content = markdown_to_html(markdown_text)
+    else:
+        content = markdown_text
     with open(path, "w") as f:
-        f.write(markdown_text)
+        f.write(content)
     return path

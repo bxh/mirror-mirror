@@ -13,6 +13,7 @@ dependencies = [
     "rich",
     "python-dotenv",
     "openai",
+    "markdown",
 ]
 
 [project.scripts]
